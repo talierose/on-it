@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Help — your to-dos, ranked by what matters</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script>
+  // set the theme before styles paint, so there's no flash of the wrong colours
+  try {
+    var t = localStorage.getItem('workhelp-theme') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<style>
+  /* ============ Work Help theme — IRIS brand ============
+     Light = white/soft-grey pages, deep purple text, teal accents,
+     orange for urgency. Dark = deep purple ink. All colour flows
+     through these CSS variables (see IRIS brand guidelines). */
+  :root {
+    color-scheme: light;
+    --bg: #f4f5f8;
+    --card: #ffffff;
+    --ink: #3C355E;          /* IRIS primary purple */
+    --ink-soft: #7a749a;
+    --accent: #3C355E;       /* primary buttons / active nav */
+    --accent-soft: #ecebf3;
+    --on-accent: #ffffff;
+    --teal: #20C3CB;         /* IRIS teal accent */
+    --teal-soft: #dcf5f6;
+    --orange: #FF6860;       /* IRIS coral — urgency / overdue */
+    --orange-soft: #ffe4e2;
+    --lavender: #928BBA;
+    --green: #3f9d6b;
+    --green-soft: #e0f1e8;
+    --amber: #b07d20;
+    --amber-soft: #f7ecd4;
+    --border: #e4e3ec;
+    --danger: #d6564f;
+    --danger-border: #f2c7c4;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(60,53,94,.05), 0 6px 18px rgba(60,53,94,.07);
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #221d38;
+    --card: #2c2647;
+    --ink: #ece9f6;
+    --ink-soft: #a9a3c8;
+    --accent: #9a8fe0;
+    --accent-soft: #3a3360;
+    --on-accent: #201b34;
+    --teal: #3ad4dc;
+    --teal-soft: #143f42;
+    --orange: #ff7a73;
+    --orange-soft: #4d2e2d;
+    --lavender: #b3aede;
+    --green: #6fc596;
+    --green-soft: #1f3b2c;
+    --amber: #d9ad5c;
+    --amber-soft: #43371d;
+    --border: #3c3560;
+    --danger: #f0837c;
+    --danger-border: #5c3c3a;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Poppins", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    font-size: 16px; line-height: 1.5;
+    transition: background .25s ease, color .25s ease;
+  }
+  h1, h2 { font-family: "Poppins", sans-serif; font-weight: 600; }
+
+  header { text-align: center; padding: 22px 16px 4px; position: relative; }
+  header .logo-wrap { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  header img.logo { height: 34px; width: auto; }
+  header img.logo-dark { display: none; }
+  [data-theme="dark"] header img.logo-light { display: none; }
+  [data-theme="dark"] header img.logo-dark { display: inline-block; }
+  header .app-name {
+    font-family: "Poppins", sans-serif; font-weight: 600; font-size: 1.5rem;
+    color: var(--ink); border-left: 2px solid var(--border); padding-left: 12px;
+  }
+  header p { margin: 6px 0 0; color: var(--ink-soft); font-size: .92rem; }
+  .theme-toggle {
+    position: absolute; top: 12px; right: 12px;
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card); color: var(--ink);
+    font-size: 1.05rem; cursor: pointer; box-shadow: var(--shadow); line-height: 1;
+  }
+
+  nav {
+    display: flex; justify-content: center; gap: 8px;
+    padding: 14px 12px 8px; flex-wrap: wrap;
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+    transition: background .25s ease;
+  }
+  nav button {
+    border: 1px solid var(--border); background: var(--card); color: var(--ink);
+    padding: 10px 18px; border-radius: 999px; font-size: .98rem; cursor: pointer;
+    box-shadow: var(--shadow); transition: all .15s; font-family: inherit;
+  }
+  nav button:hover { transform: translateY(-1px); }
+  nav button.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+  main { max-width: 780px; margin: 0 auto; padding: 8px 16px 60px; }
+  .screen { display: none; }
+  .screen.active { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none;} }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 16px; margin-bottom: 12px;
+    transition: background .25s ease, border-color .25s ease;
+  }
+
+  /* ---- forms ---- */
+  label.field { display: block; margin: 14px 0 4px; font-weight: 600; font-size: .92rem; }
+  label.field .hint { font-weight: 400; color: var(--ink-soft); }
+  input[type=text], input[type=email], input[type=date], input[type=number], textarea, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 10px; font-size: 1rem; font-family: inherit; background: var(--card); color: var(--ink);
+  }
+  input::placeholder, textarea::placeholder { color: var(--ink-soft); opacity: .7; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--teal-soft); border-color: var(--teal); }
+  .choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .choice-row button {
+    border: 1px solid var(--border); background: var(--card); color: var(--ink);
+    padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: .95rem; font-family: inherit;
+  }
+  .choice-row button.selected { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .tag-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag-suggest button {
+    border: 1px dashed var(--border); background: var(--bg); color: var(--ink-soft);
+    padding: 4px 12px; border-radius: 999px; cursor: pointer; font-size: .85rem; font-family: inherit;
+  }
+  .tag-suggest button:hover { border-color: var(--teal); color: var(--teal); }
+
+  .btn-primary {
+    background: var(--accent); color: var(--on-accent); border: none; border-radius: 12px;
+    padding: 13px 22px; font-size: 1.05rem; cursor: pointer; margin-top: 18px; width: 100%;
+    font-weight: 600; font-family: inherit;
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-quiet {
+    background: none; border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 14px; cursor: pointer; color: var(--ink-soft); font-size: .9rem; font-family: inherit;
+  }
+  .btn-danger { border-color: var(--danger-border); color: var(--danger); }
+
+  /* ---- list ---- */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .filters select { width: auto; padding: 8px 10px; font-size: .92rem; }
+  .filters input[type=text] { flex: 1; min-width: 140px; }
+  .item-card { display: flex; gap: 12px; align-items: flex-start; }
+  .item-emoji { font-size: 1.6rem; line-height: 1.2; }
+  .item-body { flex: 1; min-width: 0; }
+  .item-title { font-weight: 600; font-size: 1.08rem; margin: 0; }
+  .item-title.done { text-decoration: line-through; color: var(--ink-soft); }
+  .item-meta { color: var(--ink-soft); font-size: .85rem; margin-top: 2px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  .badge { font-size: .75rem; padding: 2px 10px; border-radius: 999px; font-weight: 600; }
+  .b-status-notstarted { background: var(--accent-soft); color: var(--accent); }
+  .b-status-working { background: var(--teal-soft); color: var(--teal); }
+  .b-status-waiting { background: var(--amber-soft); color: var(--amber); }
+  .b-status-done { background: var(--green-soft); color: var(--green); }
+  .b-tag { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+  .b-who { background: var(--teal-soft); color: var(--teal); font-weight: 500; }
+  .b-deadline { background: var(--accent-soft); color: var(--accent); }
+  .b-deadline.due-soon { background: var(--amber-soft); color: var(--amber); }
+  .b-deadline.overdue { background: var(--orange-soft); color: var(--orange); }
+  .b-repeat { background: var(--accent-soft); color: var(--lavender); font-weight: 500; }
+  .item-actions { display: flex; flex-direction: column; gap: 6px; }
+  .item-actions button {
+    border: 1px solid var(--border); background: var(--card); border-radius: 8px;
+    padding: 5px 10px; cursor: pointer; font-size: .8rem; color: var(--ink-soft); white-space: nowrap; font-family: inherit;
+  }
+  .item-actions button:hover { border-color: var(--teal); color: var(--teal); }
+  .item-actions .btn-log { background: var(--teal-soft); border-color: var(--teal-soft); color: var(--teal); font-weight: 700; }
+  .item-actions .btn-done { background: var(--green-soft); border-color: var(--green-soft); color: var(--green); font-weight: 700; }
+  .count-line { color: var(--ink-soft); font-size: .88rem; margin: 4px 2px 10px; }
+
+  /* ---- rank screen ---- */
+  .mood-box-wrap { text-align: center; padding: 10px 0 4px; }
+  .mood-box-wrap h2 { margin: 6px 0 2px; font-size: 1.4rem; color: var(--ink); }
+  .mood-box-wrap p { color: var(--ink-soft); margin: 0 0 14px; }
+  .mood-input-row { display: flex; gap: 8px; }
+  .mood-input-row input { flex: 1; padding: 13px 16px; font-size: 1.05rem; border-radius: 12px; }
+  .mood-input-row button {
+    background: var(--accent); color: var(--on-accent); border: none; border-radius: 12px;
+    padding: 0 22px; font-size: 1.05rem; cursor: pointer; font-weight: 600; font-family: inherit;
+  }
+  .mood-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+  .mood-chips button {
+    border: 1px solid var(--border); background: var(--card); color: var(--ink-soft);
+    padding: 7px 14px; border-radius: 999px; cursor: pointer; font-size: .9rem; font-family: inherit;
+  }
+  .mood-chips button:hover { border-color: var(--teal); color: var(--teal); }
+  .suggestion { border-left: 4px solid var(--teal); }
+  .suggestion.urgent { border-left-color: var(--orange); }
+  .suggestion .why { color: var(--ink-soft); font-size: .85rem; margin-top: 6px; }
+  .section-label {
+    font-family: "Poppins", sans-serif; font-weight: 600;
+    font-size: 1.02rem; color: var(--ink); margin: 24px 4px 8px;
+  }
+  .section-label.warn { color: var(--orange); }
+
+  .empty { text-align: center; color: var(--ink-soft); padding: 30px 16px; }
+  .empty .big { font-size: 2.3rem; }
+
+  footer { text-align: center; color: var(--ink-soft); font-size: .8rem; padding: 20px; }
+  footer button { background: none; border: none; color: var(--teal); cursor: pointer; font-size: .8rem; text-decoration: underline; font-family: inherit; }
+
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--card); padding: 10px 20px; border-radius: 999px;
+    font-size: .92rem; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 50;
+    box-shadow: var(--shadow); max-width: 90%; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+
+  .sync-bar {
+    max-width: 780px; margin: 0 auto; padding: 0 16px 6px;
+    display: flex; gap: 8px; align-items: center; justify-content: center;
+    flex-wrap: wrap; font-size: .88rem; color: var(--ink-soft);
+  }
+  .sync-bar input[type=email] {
+    padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px;
+    font-size: .88rem; width: 210px;
+  }
+  .sync-bar button {
+    border: 1px solid var(--border); background: var(--card); color: var(--teal);
+    padding: 7px 14px; border-radius: 999px; cursor: pointer; font-size: .88rem; font-family: inherit;
+  }
+  .sync-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+  .sync-dot.ok { background: var(--green); }
+  .sync-dot.syncing { background: var(--amber); }
+  .sync-dot.error { background: var(--danger); }
+
+  /* ---- stats ---- */
+  .stat-row { display: flex; align-items: center; gap: 10px; margin: 9px 0; }
+  .stat-label { width: 130px; font-size: .9rem; text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-bar-track { flex: 1; height: 16px; background: var(--accent-soft); border-radius: 999px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; background: var(--teal); border-radius: 999px; min-width: 4px; }
+  .stat-count { width: 92px; font-size: .82rem; color: var(--ink-soft); flex-shrink: 0; }
+  .stat-total { text-align: center; font-weight: 600; font-size: 1.05rem; margin: 4px 0 6px; }
+  .stat-total .big-num { color: var(--orange); font-size: 1.35rem; }
+  .stat-summary { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; margin: 4px 0 16px; color: var(--ink-soft); font-size: .9rem; }
+  .stat-summary b { color: var(--ink); font-size: 1.15rem; display: block; }
+  .stat-summary div { text-align: center; }
+
+  button:active { transform: scale(.96); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 520px) {
+    .item-actions { flex-direction: row; flex-wrap: wrap; }
+    .item-card { flex-wrap: wrap; }
+    .stat-label { width: 96px; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header>
+  <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Switch between light and dark mode">🌙</button>
+  <div class="logo-wrap">
+    <img class="logo logo-light" src="data:image/png;base64,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" alt="IRIS">
+    <img class="logo logo-dark" src="data:image/png;base64,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" alt="IRIS">
+    <span class="app-name">Work Help</span>
+  </div>
+  <p>Everything on your plate — ranked by what matters most.</p>
+</header>
+
+<nav>
+  <button id="nav-rank" onclick="showScreen('rank')">⚡ What now?</button>
+  <button id="nav-list" onclick="showScreen('list')">📋 My to-dos</button>
+  <button id="nav-add" onclick="showScreen('add')">➕ Add</button>
+  <button id="nav-stats" onclick="showScreen('stats')">📊 Stats</button>
+</nav>
+
+<div id="sync-bar" class="sync-bar" style="display:none"></div>
+
+<main>
+
+  <!-- ============ SCREEN: WHAT NOW? (ranking) ============ -->
+  <section id="screen-rank" class="screen">
+    <div class="mood-box-wrap">
+      <h2>What should I do right now?</h2>
+      <p>Tell me how long you've got, or what you want to clear.</p>
+      <div class="mood-input-row">
+        <input type="text" id="rank-input" placeholder='e.g. "30 minutes", "get Monday sorted", "quick wins"' onkeydown="if(event.key==='Enter')runRank()">
+        <button onclick="runRank()">Go</button>
+      </div>
+      <div class="mood-chips" id="rank-chips"></div>
+    </div>
+    <div id="rank-results"></div>
+  </section>
+
+  <!-- ============ SCREEN: MY TO-DOS ============ -->
+  <section id="screen-list" class="screen">
+    <div class="filters">
+      <input type="text" id="search" placeholder="Search titles, notes, tags…" oninput="renderList()">
+      <select id="filter-status" onchange="renderList()">
+        <option value="">All statuses</option>
+        <option value="active">Active (not done)</option>
+        <option value="notstarted">Not started</option>
+        <option value="working">Working on it</option>
+        <option value="waiting">Waiting for info</option>
+        <option value="done">Completed</option>
+      </select>
+      <select id="filter-platform" onchange="renderList()">
+        <option value="">All platforms</option>
+      </select>
+      <select id="sort-by" onchange="renderList()">
+        <option value="deadline">Sort: deadline</option>
+        <option value="updated">Sort: recently touched</option>
+        <option value="created">Sort: newest added</option>
+      </select>
+    </div>
+    <div class="count-line" id="count-line"></div>
+    <div id="list-container"></div>
+  </section>
+
+  <!-- ============ SCREEN: ADD / EDIT ============ -->
+  <section id="screen-add" class="screen">
+    <div class="card">
+      <h2 id="add-heading" style="margin-top:2px">Add a to-do</h2>
+
+      <label class="field" for="f-title">What needs doing?</label>
+      <input type="text" id="f-title" placeholder="e.g. Send W Hotels onboarding pack">
+
+      <label class="field" for="f-who">Who's it for? <span class="hint">— a person, client, or team</span></label>
+      <input type="text" id="f-who" placeholder="e.g. Marriott, my manager, Finance">
+      <div class="tag-suggest" id="who-suggest"></div>
+
+      <label class="field">Platform <span class="hint">— the tool you'll do it in</span></label>
+      <div class="choice-row" id="f-platform" data-value="outlook">
+        <button data-v="monday">📋 Monday.com</button>
+        <button data-v="excel">📊 Excel</button>
+        <button data-v="outlook">✉️ Outlook</button>
+        <button data-v="teams">💬 Teams</button>
+        <button data-v="sharepoint">📁 SharePoint</button>
+        <button data-v="word">📄 Word</button>
+        <button data-v="browser">🌐 Browser</button>
+        <button data-v="other">🔧 Other</button>
+      </div>
+      <div id="platform-other-wrap" style="display:none; margin-top:8px">
+        <input type="text" id="f-platform-other" placeholder="Which tool? e.g. Salesforce, Figma">
+      </div>
+
+      <label class="field" for="f-info">Where's the info? <span class="hint">— where the brief / details live</span></label>
+      <input type="text" id="f-info" placeholder="e.g. Teams msg from Sam, email thread, a link">
+      <div class="tag-suggest" id="info-suggest"></div>
+
+      <label class="field" for="f-deadline">Deadline <span class="hint">— the single biggest thing for ranking</span></label>
+      <input type="date" id="f-deadline">
+
+      <label class="field">How long will it take? <span class="hint">— roughly, one sitting</span></label>
+      <div class="choice-row" id="f-time" data-value="30">
+        <button data-v="15">≤ 15 min</button>
+        <button data-v="30">~ 30 min</button>
+        <button data-v="60">~ 1 hour</button>
+        <button data-v="120">~ 2 hours</button>
+        <button data-v="240">Half a day</button>
+        <button data-v="999">Big project</button>
+      </div>
+
+      <label class="field">Repeats? <span class="hint">— when done, a fresh copy is made with the next deadline</span></label>
+      <div class="choice-row" id="f-repeat" data-value="none">
+        <button data-v="none">One-off</button>
+        <button data-v="daily">Daily</button>
+        <button data-v="weekly">Weekly</button>
+        <button data-v="fortnightly">Fortnightly</button>
+        <button data-v="monthly">Monthly</button>
+        <button data-v="quarterly">Quarterly</button>
+        <button data-v="yearly">Yearly</button>
+      </div>
+
+      <label class="field">Status</label>
+      <div class="choice-row" id="f-status" data-value="notstarted">
+        <button data-v="notstarted">Not started</button>
+        <button data-v="working">Working on it</button>
+        <button data-v="waiting">Waiting for info</button>
+        <button data-v="done">Completed</button>
+      </div>
+
+      <label class="field" for="f-tags">Tags <span class="hint">— tap ones you've used, or type new (comma separated)</span></label>
+      <input type="text" id="f-tags" placeholder="quick win, need to be in office, admin">
+      <div class="tag-suggest" id="tag-suggest"></div>
+
+      <label class="field" for="f-notes">Notes</label>
+      <textarea id="f-notes" rows="2" placeholder="Anything else — context, links, what 'done' looks like…"></textarea>
+
+      <button class="btn-primary" id="save-btn" onclick="saveItem()">Add to-do</button>
+      <button class="btn-quiet" id="cancel-edit-btn" style="display:none; width:100%; margin-top:8px" onclick="cancelEdit()">Cancel editing</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: LOG WORK (opens from ＋ log work) ============ -->
+  <section id="screen-log" class="screen">
+    <div class="card">
+      <h2 style="margin-top:2px" id="log-heading">Log some work</h2>
+      <p style="color:var(--ink-soft); margin-top:0">Chipping away without finishing? Record it — it counts in your stats and keeps this on the "working on it" pile.</p>
+
+      <label class="field">How long did you spend?</label>
+      <div class="choice-row" id="log-mins" data-value="30">
+        <button data-v="5">5 min</button>
+        <button data-v="15">15 min</button>
+        <button data-v="30">30 min</button>
+        <button data-v="60">1 hour</button>
+        <button data-v="120">2 hours</button>
+        <button data-v="240">Half a day</button>
+      </div>
+
+      <label class="field" for="log-note">What did you get done? <span class="hint">— optional</span></label>
+      <textarea id="log-note" rows="2" placeholder="e.g. drafted the intro, waiting to hear back on pricing"></textarea>
+
+      <button class="btn-primary" onclick="saveLog()">Log it</button>
+      <button class="btn-quiet" style="display:block; width:100%; margin-top:8px" onclick="cancelLog()">Cancel</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: STATS ============ -->
+  <section id="screen-stats" class="screen">
+    <div class="mood-box-wrap">
+      <h2>Your work stats</h2>
+      <p>What you actually worked on — from your logged sessions and completions.</p>
+    </div>
+    <div class="choice-row" id="stats-range" data-value="30" style="justify-content:center; margin-bottom:16px">
+      <button data-v="7">Week</button>
+      <button data-v="30">Month</button>
+      <button data-v="90">Quarter</button>
+      <button data-v="365">Year</button>
+      <button data-v="0">All time</button>
+    </div>
+    <div id="stats-content"></div>
+  </section>
+
+</main>
+
+<footer>
+  Your to-dos sync privately to your account (and stay on this device too). &nbsp;
+  <button onclick="exportData()">Back up (download)</button> ·
+  <button onclick="document.getElementById('import-file').click()">Restore from backup</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= data ================= */
+const STORE_KEY = 'workhelp-items-v1';
+const LOG_KEY = 'workhelp-log-v1';   // work sessions + completions, for stats
+let items = [];
+let log = [];
+let editingId = null;
+
+function load() {
+  try { items = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch(e) { items = []; }
+  try { log = JSON.parse(localStorage.getItem(LOG_KEY)) || []; } catch(e) { log = []; }
+}
+function persist() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(items));
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
+  schedulePush();
+}
+// items with deleted:true are tombstones — kept so a deletion on one device
+// isn't undone by a sync from another device that still has the item
+function activeItems() { return items.filter(i => !i.deleted); }
+
+const PLATFORM_LABEL = { monday:'Monday.com', excel:'Excel', outlook:'Outlook', teams:'Teams', sharepoint:'SharePoint', word:'Word', browser:'Browser', other:'Other' };
+const PLATFORM_EMOJI = { monday:'📋', excel:'📊', outlook:'✉️', teams:'💬', sharepoint:'📁', word:'📄', browser:'🌐', other:'🔧' };
+const STATUS_LABEL = { notstarted:'Not started', working:'Working on it', waiting:'Waiting for info', done:'Completed' };
+const STATUS_CLASS = { notstarted:'b-status-notstarted', working:'b-status-working', waiting:'b-status-waiting', done:'b-status-done' };
+const TIME_LABEL = { 15:'≤15 min', 30:'~30 min', 60:'~1 hr', 120:'~2 hrs', 240:'½ day', 999:'big project' };
+const REPEAT_LABEL = { none:'One-off', daily:'Daily', weekly:'Weekly', fortnightly:'Fortnightly', monthly:'Monthly', quarterly:'Quarterly', yearly:'Yearly' };
+const STARTER_TAGS = ['quick win','need to be in office','admin','deep focus','waiting on reply','can do anywhere','emails','meeting prep'];
+
+function platformLabel(it) {
+  if (it.platform === 'other') return it.platformOther || 'Other';
+  return PLATFORM_LABEL[it.platform] || 'Other';
+}
+function platformEmoji(it) { return PLATFORM_EMOJI[it.platform] || '🔧'; }
+
+/* ================= navigation ================= */
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  const navBtn = document.getElementById('nav-' + name);
+  if (navBtn) navBtn.classList.add('active');
+  if (name === 'list') { refreshPlatformFilter(); renderList(); }
+  if (name === 'rank') { renderRankChips(); }
+  if (name === 'stats') renderStats();
+  if (name === 'add' && !editingId) resetForm();
+  window.scrollTo({top:0});
+}
+
+/* ================= choice rows ================= */
+document.querySelectorAll('.choice-row').forEach(row => {
+  row.addEventListener('click', e => {
+    if (e.target.tagName !== 'BUTTON') return;
+    row.dataset.value = e.target.dataset.v;
+    row.querySelectorAll('button').forEach(b => b.classList.toggle('selected', b === e.target));
+    if (row.id === 'f-platform') updatePlatformOther();
+    if (row.id === 'stats-range') renderStats();
+  });
+});
+function updatePlatformOther() {
+  const isOther = document.getElementById('f-platform').dataset.value === 'other';
+  document.getElementById('platform-other-wrap').style.display = isOther ? 'block' : 'none';
+}
+function setChoice(rowId, value) {
+  const row = document.getElementById(rowId);
+  row.dataset.value = value;
+  row.querySelectorAll('button').forEach(b => b.classList.toggle('selected', b.dataset.v == value));
+}
+
+/* ================= suggestion chips (who / info / tags) ================= */
+function distinctValues(getter) {
+  const stats = new Map();
+  activeItems().forEach(i => {
+    (getter(i) || []).forEach(v => {
+      v = (v || '').trim(); if (!v) return;
+      const s = stats.get(v) || { n: 0, last: 0 };
+      s.n++; s.last = Math.max(s.last, i.updated || 0); stats.set(v, s);
+    });
+  });
+  return [...stats.keys()].sort((a, b) => stats.get(b).n - stats.get(a).n || stats.get(b).last - stats.get(a).last);
+}
+function renderChipRow(containerId, values, fieldId, isCsv) {
+  const el = document.getElementById(containerId);
+  if (!values.length) { el.innerHTML = ''; return; }
+  el.innerHTML = values.slice(0, 12).map(v =>
+    `<button type="button" onclick="addChip('${fieldId}','${v.replace(/'/g,"\\'")}',${isCsv})">+ ${esc(v)}</button>`).join('');
+}
+function addChip(fieldId, val, isCsv) {
+  const f = document.getElementById(fieldId);
+  if (isCsv) {
+    const cur = f.value.split(',').map(s=>s.trim()).filter(Boolean);
+    if (!cur.includes(val)) cur.push(val);
+    f.value = cur.join(', ');
+  } else {
+    f.value = val;
+  }
+}
+function renderFormSuggestions() {
+  renderChipRow('who-suggest', distinctValues(i => i.who ? [i.who] : []), 'f-who', false);
+  renderChipRow('info-suggest', distinctValues(i => i.info ? [i.info] : []), 'f-info', false);
+  const own = distinctValues(i => i.tags || []);
+  const tags = [...new Set([...own, ...STARTER_TAGS])].slice(0, 12);
+  renderChipRow('tag-suggest', tags, 'f-tags', true);
+}
+
+/* ================= add / edit ================= */
+function resetForm() {
+  editingId = null;
+  document.getElementById('add-heading').textContent = 'Add a to-do';
+  document.getElementById('save-btn').textContent = 'Add to-do';
+  document.getElementById('cancel-edit-btn').style.display = 'none';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-who').value = '';
+  document.getElementById('f-info').value = '';
+  document.getElementById('f-deadline').value = '';
+  document.getElementById('f-tags').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('f-platform-other').value = '';
+  setChoice('f-platform','outlook'); updatePlatformOther();
+  setChoice('f-time','30'); setChoice('f-repeat','none'); setChoice('f-status','notstarted');
+  renderFormSuggestions();
+}
+function saveItem() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { toast('Give it a title first 🙂'); return; }
+  const platform = document.getElementById('f-platform').dataset.value;
+  const data = {
+    title,
+    who: document.getElementById('f-who').value.trim(),
+    platform,
+    platformOther: platform === 'other' ? document.getElementById('f-platform-other').value.trim() : '',
+    info: document.getElementById('f-info').value.trim(),
+    deadline: document.getElementById('f-deadline').value || null,
+    time: parseInt(document.getElementById('f-time').dataset.value),
+    repeat: document.getElementById('f-repeat').dataset.value,
+    status: document.getElementById('f-status').dataset.value,
+    tags: document.getElementById('f-tags').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean),
+    notes: document.getElementById('f-notes').value.trim(),
+  };
+  if (editingId) {
+    const it = items.find(i => i.id === editingId);
+    Object.assign(it, data, { updated: Date.now() });
+    toast('Updated ✔');
+  } else {
+    items.push({ id: crypto.randomUUID(), created: Date.now(), updated: Date.now(), workLog: [], ...data });
+    toast('Added to your list ✔');
+  }
+  persist();
+  resetForm();
+  showScreen('list');
+}
+function editItem(id) {
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+  editingId = id;
+  showScreen('add');
+  document.getElementById('add-heading').textContent = 'Edit to-do';
+  document.getElementById('save-btn').textContent = 'Save changes';
+  document.getElementById('cancel-edit-btn').style.display = 'block';
+  document.getElementById('f-title').value = it.title;
+  document.getElementById('f-who').value = it.who || '';
+  document.getElementById('f-info').value = it.info || '';
+  document.getElementById('f-deadline').value = it.deadline || '';
+  document.getElementById('f-tags').value = (it.tags || []).join(', ');
+  document.getElementById('f-notes').value = it.notes || '';
+  document.getElementById('f-platform-other').value = it.platformOther || '';
+  setChoice('f-platform', it.platform || 'outlook'); updatePlatformOther();
+  setChoice('f-time', it.time || 30); setChoice('f-repeat', it.repeat || 'none'); setChoice('f-status', it.status || 'notstarted');
+  renderFormSuggestions();
+}
+function cancelEdit() { resetForm(); showScreen('list'); }
+function deleteItem(id) {
+  const it = items.find(i => i.id === id);
+  if (!it || !confirm(`Delete "${it.title}"?`)) return;
+  it.deleted = true; it.updated = Date.now();
+  persist(); renderList(); toast('Deleted');
+}
+function reopenItem(id) {
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+  it.status = 'notstarted'; it.updated = Date.now();
+  persist(); renderList(); toast('Reopened');
+}
+
+/* ================= log work ================= */
+let loggingId = null;
+function logWork(id) {
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+  loggingId = id;
+  document.getElementById('log-heading').textContent = `Log work: ${it.title}`;
+  setChoice('log-mins', '30');
+  document.getElementById('log-note').value = '';
+  showScreen('log');
+}
+function saveLog() {
+  const it = items.find(i => i.id === loggingId);
+  if (!it) { showScreen('list'); return; }
+  const mins = parseInt(document.getElementById('log-mins').dataset.value) || 0;
+  const note = document.getElementById('log-note').value.trim();
+  it.workLog = it.workLog || [];
+  it.workLog.push({ ts: Date.now(), mins, note });
+  if (it.status === 'notstarted' || it.status === 'waiting') it.status = 'working';
+  if (note) it.notes = note;   // keep the latest progress note visible on the card
+  it.updated = Date.now();
+  appendLog(it, mins, false);
+  loggingId = null;
+  persist();
+  showScreen('list');
+  toast(`Logged ${mins} min on "${it.title}" 💪`);
+}
+function cancelLog() { loggingId = null; showScreen('list'); }
+
+/* ================= complete (with repeat) ================= */
+function nextDeadline(baseISO, repeat) {
+  const today = new Date(todayISO());
+  let d = baseISO ? new Date(baseISO) : new Date(today);
+  const step = () => {
+    if (repeat === 'daily') d.setDate(d.getDate() + 1);
+    else if (repeat === 'weekly') d.setDate(d.getDate() + 7);
+    else if (repeat === 'fortnightly') d.setDate(d.getDate() + 14);
+    else if (repeat === 'monthly') d.setMonth(d.getMonth() + 1);
+    else if (repeat === 'quarterly') d.setMonth(d.getMonth() + 3);
+    else if (repeat === 'yearly') d.setFullYear(d.getFullYear() + 1);
+    else d.setDate(d.getDate() + 7);
+  };
+  step();
+  // if the task was overdue, keep stepping until the next deadline is in the future
+  let guard = 0;
+  while (d < today && guard++ < 400) step();
+  return d.toISOString().slice(0, 10);
+}
+function completeItem(id) {
+  const it = items.find(i => i.id === id);
+  if (!it || it.status === 'done') return;
+  appendLog(it, 0, true);   // record the completion for stats
+  if (it.repeat && it.repeat !== 'none') {
+    const nd = nextDeadline(it.deadline, it.repeat);
+    items.push({
+      id: crypto.randomUUID(), created: Date.now(), updated: Date.now(), workLog: [],
+      title: it.title, who: it.who || '', platform: it.platform, platformOther: it.platformOther || '',
+      info: it.info || '', deadline: nd, time: it.time, repeat: it.repeat,
+      status: 'notstarted', tags: [...(it.tags || [])], notes: it.notes || '',
+    });
+    it.status = 'done'; it.updated = Date.now();
+    persist(); renderList();
+    toast(`Done ✓ — next one due ${fmtDate(nd)}`);
+  } else {
+    it.status = 'done'; it.updated = Date.now();
+    persist(); renderList();
+    toast(`Done ✓ 🎉`);
+  }
+}
+
+/* ================= stats log ================= */
+function appendLog(it, mins, done) {
+  log.push({
+    id: it.id, title: it.title, platform: it.platform, platformOther: it.platformOther || '',
+    who: it.who || '', tags: [...(it.tags || [])], mins: mins || 0, ts: Date.now(), done: !!done,
+  });
+}
+
+/* ================= dates ================= */
+function todayISO() { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function daysUntil(iso) {
+  if (!iso) return null;
+  const t = new Date(todayISO()), d = new Date(iso);
+  return Math.round((d - t) / 86400000);
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+function deadlineBadge(it) {
+  if (!it.deadline) return '';
+  const du = daysUntil(it.deadline);
+  let cls = '', txt = '🗓 ' + fmtDate(it.deadline);
+  if (it.status === 'done') return `<span class="badge b-deadline">${txt}</span>`;
+  if (du < 0) { cls = 'overdue'; txt = '⚠ overdue · ' + fmtDate(it.deadline); }
+  else if (du === 0) { cls = 'overdue'; txt = '⚠ due today'; }
+  else if (du === 1) { cls = 'due-soon'; txt = '🗓 due tomorrow'; }
+  else if (du <= 3) { cls = 'due-soon'; txt = '🗓 in ' + du + ' days'; }
+  else if (du <= 7) { cls = 'due-soon'; txt = '🗓 ' + fmtDate(it.deadline); }
+  return `<span class="badge b-deadline ${cls}">${txt}</span>`;
+}
+
+/* ================= list ================= */
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function itemCard(it, extraHtml='', urgent=false) {
+  const done = it.status === 'done';
+  return `<div class="card item-card ${extraHtml?'suggestion':''} ${urgent?'urgent':''}">
+    <div class="item-emoji">${platformEmoji(it)}</div>
+    <div class="item-body">
+      <p class="item-title ${done?'done':''}">${esc(it.title)}</p>
+      <div class="item-meta">${platformLabel(it)}${it.who ? ' · for ' + esc(it.who) : ''} · ⏱ ${TIME_LABEL[it.time] || it.time+' min'}${it.repeat && it.repeat!=='none' ? ' · ↻ ' + REPEAT_LABEL[it.repeat] : ''}</div>
+      ${it.info ? `<div class="item-meta">📎 ${esc(it.info)}</div>` : ''}
+      ${it.notes ? `<div class="item-meta">📝 ${esc(it.notes)}</div>` : ''}
+      <div class="badges">
+        <span class="badge ${STATUS_CLASS[it.status]}">${STATUS_LABEL[it.status]}</span>
+        ${deadlineBadge(it)}
+        ${(it.tags||[]).map(t => `<span class="badge b-tag">${esc(t)}</span>`).join('')}
+      </div>
+      ${extraHtml}
+    </div>
+    <div class="item-actions">
+      ${!done ? `<button class="btn-log" onclick="logWork('${it.id}')">＋ log work</button>` : ''}
+      ${!done ? `<button class="btn-done" onclick="completeItem('${it.id}')">✓ done</button>` : `<button onclick="reopenItem('${it.id}')">↩ reopen</button>`}
+      <button onclick="editItem('${it.id}')">✏️ edit</button>
+      <button class="btn-danger" onclick="deleteItem('${it.id}')">🗑</button>
+    </div>
+  </div>`;
+}
+
+function refreshPlatformFilter() {
+  const sel = document.getElementById('filter-platform');
+  const cur = sel.value;
+  const used = [...new Set(activeItems().map(i => i.platform))];
+  sel.innerHTML = '<option value="">All platforms</option>' +
+    used.map(p => `<option value="${p}">${PLATFORM_EMOJI[p]||'🔧'} ${esc(PLATFORM_LABEL[p]||'Other')}</option>`).join('');
+  sel.value = cur;
+}
+
+function renderList() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const fs = document.getElementById('filter-status').value;
+  const fp = document.getElementById('filter-platform').value;
+  const sortBy = document.getElementById('sort-by').value;
+  const active = activeItems();
+  let shown = active.filter(i =>
+    (!fp || i.platform === fp) &&
+    (fs === 'active' ? i.status !== 'done' : (!fs || i.status === fs)) &&
+    (!q || i.title.toLowerCase().includes(q) || (i.tags||[]).some(t => t.includes(q)) ||
+      (i.notes||'').toLowerCase().includes(q) || (i.who||'').toLowerCase().includes(q) || (i.info||'').toLowerCase().includes(q))
+  );
+
+  if (sortBy === 'created') shown.sort((a,b) => b.created - a.created);
+  else if (sortBy === 'updated') shown.sort((a,b) => b.updated - a.updated);
+  else {
+    // deadline: done last; within active, soonest deadline first, undated after dated
+    const statusOrder = { working:0, notstarted:1, waiting:2, done:3 };
+    shown.sort((a,b) => {
+      if ((a.status==='done') !== (b.status==='done')) return a.status==='done' ? 1 : -1;
+      const ad = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const bd = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      if (ad !== bd) return ad - bd;
+      return (statusOrder[a.status]-statusOrder[b.status]) || b.updated - a.updated;
+    });
+  }
+
+  const container = document.getElementById('list-container');
+  const activeCount = active.filter(i => i.status !== 'done').length;
+  document.getElementById('count-line').textContent = active.length
+    ? `${shown.length} shown · ${activeCount} still to do` : '';
+
+  if (!active.length) {
+    container.innerHTML = `<div class="empty">
+      <div class="big">📋</div>
+      <p>No to-dos yet. Add your first one!</p>
+      <button class="btn-quiet" onclick="loadExamples()">Or load a few examples to see how it works</button>
+    </div>`;
+    return;
+  }
+  if (!shown.length) { container.innerHTML = `<div class="empty"><div class="big">🔍</div><p>Nothing matches those filters.</p></div>`; return; }
+  container.innerHTML = shown.map(i => itemCard(i)).join('');
+}
+
+function loadExamples() {
+  const d = n => { const x = new Date(); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+  const ex = [
+    { title:'Send Marriott onboarding pack', who:'Marriott', platform:'outlook', info:'Email thread from Priya', deadline:d(0), time:30, repeat:'none', status:'notstarted', tags:['quick win'], notes:'' },
+    { title:'Update Q3 rollout tracker', who:'my manager', platform:'monday', info:'Monday board "Rollouts"', deadline:d(2), time:60, repeat:'weekly', status:'working', tags:['admin'], notes:'Done the W Hotels rows' },
+    { title:'Build W Hotels pricing model', who:'W Hotels', platform:'excel', info:'Teams msg from Sam', deadline:d(6), time:999, repeat:'none', status:'working', tags:['deep focus'], notes:'Structure sketched out' },
+    { title:'Reply to legal on contract wording', who:'Legal', platform:'outlook', info:'Email from Legal', deadline:d(1), time:15, repeat:'none', status:'waiting', tags:['waiting on reply'], notes:'Waiting for the redlines' },
+    { title:'Prep slides for Monday standup', who:'the team', platform:'word', info:'Last week’s deck in SharePoint', deadline:d(4), time:60, repeat:'weekly', status:'notstarted', tags:['meeting prep','need to be in office'], notes:'' },
+    { title:'Submit expenses', who:'Finance', platform:'browser', info:'Concur portal', deadline:d(-1), time:15, repeat:'monthly', status:'notstarted', tags:['quick win','admin'], notes:'' },
+  ];
+  ex.forEach(e => items.push({ id: crypto.randomUUID(), created: Date.now(), updated: Date.now(), workLog: [], platformOther:'', ...e }));
+  persist(); refreshPlatformFilter(); renderList(); toast('Examples added — edit or delete them any time');
+}
+
+/* ================= ranking — the heart of the app ================= *
+   Deadlines dominate (that's what Natalie asked for). On top of that we
+   read the query for available time, a target day ("get Monday sorted"),
+   a platform, who it's for, and tags. See the maintainer guide for the
+   full points table. */
+function parseTime(q) {
+  q = q.toLowerCase();
+  let m;
+  if ((m = q.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h\b)/))) return Math.round(parseFloat(m[1]) * 60);
+  if ((m = q.match(/(\d+)\s*(?:minutes?|mins?|m\b)/))) return parseInt(m[1]);
+  if (/half an hour|half hour/.test(q)) return 30;
+  if (/quarter of an hour/.test(q)) return 15;
+  if (/couple of hours|couple hours/.test(q)) return 120;
+  if (/a few hours|few hours|several hours/.test(q)) return 180;
+  if (/lots of time|loads of time|plenty of time|all afternoon|all morning/.test(q)) return 360;
+  if (/an hour|one hour/.test(q)) return 60;
+  if (/all day|whole day|the whole day/.test(q)) return 480;
+  if (/quick|not long|a bit|few min|short/.test(q)) return 20;
+  return null;
+}
+// Note: weekday names (Monday, Tuesday…) are intentionally NOT parsed as dates —
+// Natalie sets a real deadline date instead. And "Monday" always means the tool
+// Monday.com (see parsePlatform below). Only relative windows are recognised here.
+function parseWindow(q) {
+  q = q.toLowerCase();
+  const base = new Date(todayISO());
+  const iso = dt => dt.toISOString().slice(0,10);
+  if (/\btoday\b|end of (?:the )?day|by tonight|tonight/.test(q)) return iso(base);
+  if (/\btomorrow\b/.test(q)) { const d = new Date(base); d.setDate(d.getDate()+1); return iso(d); }
+  if (/this month|end of (?:the )?month|by month ?end/.test(q)) { const d = new Date(base.getFullYear(), base.getMonth()+1, 0); return iso(d); }
+  if (/next week/.test(q)) { const d = new Date(base); d.setDate(d.getDate() + ((7 - d.getDay()) % 7) + 7); return iso(d); }
+  if (/this week|end of (?:the )?week|by end of week|rest of the week/.test(q)) {
+    const d = new Date(base); d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); return iso(d);   // upcoming Sunday
+  }
+  return null;
+}
+const PLATFORM_WORDS = {
+  monday: ['monday.com','monday board','monday','mondays'],   // "Monday" always = the tool Monday.com
+  excel: ['excel','spreadsheet','spreadsheets'],
+  outlook: ['outlook','email','emails','inbox','mail'],
+  teams: ['teams'],
+  sharepoint: ['sharepoint'],
+  word: ['word document','word docs','word doc'],
+  browser: ['browser','online','web','portal'],
+};
+function parsePlatform(q) {
+  for (const [p, words] of Object.entries(PLATFORM_WORDS)) {
+    for (const w of words) { if (q.includes(w)) return p; }
+  }
+  return null;
+}
+
+function scoreTask(it, ctx) {
+  let score = 0; const why = [];
+  const { availTime, target, platform, whoSet, qWords, q } = ctx;
+  const du = daysUntil(it.deadline);
+
+  // ---- deadline urgency: the dominant signal ----
+  if (it.deadline) {
+    if (du < 0)       { score += 12; why.push(`⚠ overdue by ${-du} day${du===-1?'':'s'}`); }
+    else if (du===0)  { score += 10; why.push('due today'); }
+    else if (du===1)  { score += 8;  why.push('due tomorrow'); }
+    else if (du<=3)   { score += 6;  why.push(`due in ${du} days`); }
+    else if (du<=7)   { score += 4;  why.push('due this week'); }
+    else if (du<=14)  { score += 2;  why.push('due within a fortnight'); }
+    else              { score += 1;  why.push(`due ${fmtDate(it.deadline)}`); }
+  } else {
+    score += 0.5;   // undated tasks still surface, just below anything with a deadline
+  }
+
+  // ---- target-day intent ("get Monday sorted", "this week") ----
+  if (target) {
+    if (it.deadline && it.deadline <= target) { score += 6; why.push('needs doing in that window'); }
+    else if (it.deadline && it.deadline > target) { score -= 2; }
+    else if (!it.deadline) { score -= 1; }
+  }
+
+  // ---- available time fit ----
+  if (availTime !== null) {
+    const label = availTime >= 60 ? Math.round(availTime/60*10)/10 + ' hr' : availTime + ' min';
+    if (it.time !== 999 && it.time <= availTime) {
+      score += 2; why.push(`fits your ${label}`);
+      if ((it.tags||[]).includes('quick win') && availTime <= 30) { score += 1; why.push('a quick win'); }
+    } else if (it.time === 999) {
+      if (availTime >= 120) { score += 1; why.push('big job — you’ve time to dig in'); }
+      else { score -= 0.5; why.push('big job — better with more time'); }
+    } else {
+      score -= 1; why.push(`won’t finish in ${label}, but you can make a start`);
+    }
+  }
+
+  // ---- platform / who / tags / text ----
+  if (platform && it.platform === platform) { score += 3; why.push(`it’s in ${platformLabel(it)}`); }
+  if (whoSet.size && it.who && whoSet.has(it.who.toLowerCase())) { score += 3; why.push(`for ${esc(it.who)}`); }
+  const matchedTags = (it.tags||[]).filter(t => q.includes(t) || t.split(/\s+/).some(tw => qWords.includes(tw)));
+  if (matchedTags.length) { score += matchedTags.length * 2; why.push(`matches: ${matchedTags.join(', ')}`); }
+  const hay = (it.title + ' ' + (it.notes||'') + ' ' + (it.info||'')).toLowerCase();
+  if (q.length >= 3 && qWords.some(w => hay.includes(w) && !matchedTags.includes(w))) { score += 1; why.push('mentions what you typed'); }
+
+  // ---- status ----
+  if (it.status === 'working') { score += 3; why.push('you’re already on it'); }
+  if (it.status === 'waiting') { score -= 5; why.push('waiting on info — can’t action yet'); }
+
+  return { it, score, why };
+}
+
+function runRank() {
+  const q = document.getElementById('rank-input').value.trim().toLowerCase();
+  const resultsEl = document.getElementById('rank-results');
+  const candidates = activeItems().filter(i => i.status !== 'done');
+  if (!candidates.length) {
+    resultsEl.innerHTML = `<div class="empty"><div class="big">📋</div><p>Nothing to do — add some to-dos first!</p></div>`;
+    return;
+  }
+
+  const ctx = {
+    availTime: parseTime(q),
+    target: parseWindow(q),
+    platform: parsePlatform(q),
+    whoSet: new Set(distinctValues(i => i.who ? [i.who] : []).map(w => w.toLowerCase()).filter(w => q.includes(w))),
+    qWords: q.replace(/[^a-z0-9\s-]/g,'').split(/\s+/).filter(w => w.length > 2),
+    q,
+  };
+
+  // empty query → a clean dashboard: overdue, then do-next, then waiting
+  if (!q) {
+    const notWaiting = candidates.filter(i => i.status !== 'waiting');
+    const overdue = notWaiting.filter(i => daysUntil(i.deadline) !== null && daysUntil(i.deadline) < 0)
+      .sort((a,b) => new Date(a.deadline)-new Date(b.deadline));
+    const doNext = notWaiting.filter(i => !(daysUntil(i.deadline) !== null && daysUntil(i.deadline) < 0))
+      .map(it => scoreTask(it, ctx)).sort((a,b) => b.score - a.score).slice(0, 8);
+    const waiting = candidates.filter(i => i.status === 'waiting');
+    let html = '';
+    if (overdue.length) html += `<div class="section-label warn">⚠ Overdue — do these first</div>` + overdue.map(i => itemCard(i, '', true)).join('');
+    if (doNext.length) html += `<div class="section-label">Do next</div>` + doNext.map(s => itemCard(s.it, `<div class="why">💡 ${s.why.join(' · ')}</div>`)).join('');
+    if (waiting.length) html += `<div class="section-label">Waiting on others</div>` + waiting.map(i => itemCard(i)).join('');
+    resultsEl.innerHTML = html || `<div class="empty"><p>You’re all caught up! 🎉</p></div>`;
+    return;
+  }
+
+  const scored = candidates.map(it => scoreTask(it, ctx)).filter(s => s.score > 0).sort((a,b) => b.score - a.score);
+  if (!scored.length) {
+    resultsEl.innerHTML = `<div class="empty"><div class="big">🤔</div><p>Nothing matches that. Try different words, or check the "waiting" pile in My to-dos.</p></div>`;
+    return;
+  }
+  const top = scored.slice(0, 6);
+  resultsEl.innerHTML = `<div class="section-label">Here’s what I’d tackle</div>` +
+    top.map(s => itemCard(s.it, `<div class="why">💡 ${s.why.join(' · ') || 'a decent match'}</div>`, daysUntil(s.it.deadline) !== null && daysUntil(s.it.deadline) <= 0)).join('');
+}
+
+function renderRankChips() {
+  const chips = ['30 minutes', 'due today', 'this week', 'quick wins', 'need to be in office', 'in Outlook'];
+  document.getElementById('rank-chips').innerHTML = chips.map(c =>
+    `<button onclick="document.getElementById('rank-input').value='${c.replace(/'/g,"\\'")}';runRank()">${esc(c)}</button>`).join('');
+}
+
+/* ================= stats ================= */
+const RANGE_LABEL = { 7:'the last week', 30:'the last month', 90:'the last quarter', 365:'the last year', 0:'all time' };
+function renderStats() {
+  const el = document.getElementById('stats-content');
+  if (!el) return;
+  const days = parseInt(document.getElementById('stats-range').dataset.value);
+  const cutoff = days ? Date.now() - days * 24 * 3600 * 1000 : 0;
+  const inRange = log.filter(e => e.ts >= cutoff);
+
+  if (!inRange.length) {
+    el.innerHTML = `<div class="empty"><div class="big">📊</div>
+      <p>No work logged in ${RANGE_LABEL[days]} yet. Every time you tap ＋ log work or ✓ done, it counts here.</p></div>`;
+    return;
+  }
+  const sessions = inRange.filter(e => !e.done).length;
+  const completed = inRange.filter(e => e.done).length;
+  const totalMins = inRange.reduce((s, e) => s + (e.mins || 0), 0);
+  const hrs = Math.round(totalMins / 60 * 10) / 10;
+
+  const barGroup = (title, keyFn, labelFn) => {
+    const map = {};
+    inRange.forEach(e => { const k = keyFn(e); if (!k) return; if (!map[k]) map[k] = { n:0, mins:0 }; map[k].n++; map[k].mins += (e.mins||0); });
+    const rows = Object.entries(map).sort((a,b) => b[1].n - a[1].n);
+    if (!rows.length) return '';
+    const max = rows[0][1].n;
+    return `<div class="card"><div class="section-label" style="margin-top:2px">${title}</div>` +
+      rows.map(([k, v]) => `<div class="stat-row">
+        <span class="stat-label">${esc(labelFn(k))}</span>
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.round(v.n/max*100)}%"></div></div>
+        <span class="stat-count">${v.n}×${v.mins ? ' · '+ (v.mins>=60? Math.round(v.mins/60*10)/10+'h' : v.mins+'m') : ''}</span>
+      </div>`).join('') + `</div>`;
+  };
+
+  // top tasks by number of sessions
+  const byItem = {};
+  inRange.forEach(e => { if (!byItem[e.id]) byItem[e.id] = { n:0, mins:0, title:e.title||'(unknown)' }; byItem[e.id].n++; byItem[e.id].mins += (e.mins||0); });
+  const topItems = Object.values(byItem).sort((a,b) => b.n - a.n).slice(0, 8);
+  const maxItem = topItems[0].n;
+
+  el.innerHTML = `
+    <div class="stat-summary">
+      <div><b>${completed}</b> completed</div>
+      <div><b>${sessions}</b> work sessions</div>
+      <div><b>${hrs}h</b> logged</div>
+    </div>
+    <p class="stat-total">in ${RANGE_LABEL[days]}</p>
+    ${barGroup('Type of work — by platform', e => e.platform === 'other' ? (e.platformOther||'other') : e.platform,
+        k => (PLATFORM_EMOJI[k]||'🔧') + ' ' + (PLATFORM_LABEL[k]||k))}
+    ${barGroup('Who it was for', e => e.who, k => '👤 ' + k)}
+    ${barGroup('By tag', e => null, k => k)}
+    ${tagStats(inRange)}
+    <div class="card">
+      <div class="section-label" style="margin-top:2px">Most worked-on</div>
+      ${topItems.map(i => `<div class="stat-row">
+        <div style="flex:1; min-width:0">
+          <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(i.title)}</div>
+          <div class="stat-bar-track" style="margin-top:3px"><div class="stat-bar-fill" style="width:${Math.round(i.n/maxItem*100)}%"></div></div>
+        </div>
+        <span class="stat-count">${i.n}×${i.mins ? ' · '+(i.mins>=60? Math.round(i.mins/60*10)/10+'h' : i.mins+'m') : ''}</span>
+      </div>`).join('')}
+    </div>`;
+}
+function tagStats(inRange) {
+  const map = {};
+  inRange.forEach(e => (e.tags||[]).forEach(t => { if (!map[t]) map[t] = {n:0,mins:0}; map[t].n++; map[t].mins += (e.mins||0); }));
+  const rows = Object.entries(map).sort((a,b) => b[1].n - a[1].n);
+  if (!rows.length) return '';
+  const max = rows[0][1].n;
+  return `<div class="card"><div class="section-label" style="margin-top:2px">By tag</div>` +
+    rows.map(([k,v]) => `<div class="stat-row">
+      <span class="stat-label">${esc(k)}</span>
+      <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.round(v.n/max*100)}%"></div></div>
+      <span class="stat-count">${v.n}×</span>
+    </div>`).join('') + `</div>`;
+}
+
+/* ================= backup ================= */
+function exportData() {
+  const payload = { app: 'work-help', version: 1, items, log };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `work-help-backup-${todayISO()}.json`;
+  a.click();
+  toast('Backup downloaded 💾');
+}
+function importData(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      const inItems = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : null);
+      if (!inItems) throw new Error();
+      const existing = new Set(items.map(i => i.id));
+      let added = 0;
+      inItems.forEach(d => { if (d.id && !existing.has(d.id)) { items.push(d); added++; } });
+      if (Array.isArray(data.log)) {
+        const seen = new Set(log.map(c => c.id + '|' + c.ts));
+        data.log.forEach(c => { if (c.id && c.ts && !seen.has(c.id + '|' + c.ts)) log.push(c); });
+      }
+      persist(); refreshPlatformFilter(); renderList();
+      toast(`Restored ${added} to-do${added===1?'':'s'} ✔`);
+    } catch(e) { toast('That file doesn\'t look like a Work Help backup'); }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+
+/* ================= cloud sync (Supabase) =================
+   Same account setup as Shelf Help — magic-link email auth, one row per
+   user in table `worktodos` (user_id uuid PK, data jsonb, updated_at).
+   Merge: per-item newest-wins by `updated`; deletions survive as
+   tombstones; the stats log is unioned. RLS is the security boundary. */
+const SUPABASE_URL = 'https://qhqnufukdtgcrunlfrsj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_DPCYkm8roknATBwORlb1Kg_KfdKnrM7';
+const SYNC_TABLE = 'worktodos';
+let sb = null, syncUser = null, pushTimer = null, syncState = 'off';
+
+function syncConfigured() { return SUPABASE_URL.startsWith('https://') && window.supabase; }
+
+async function initSync() {
+  if (!syncConfigured()) return;
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data: { session } } = await sb.auth.getSession();
+  syncUser = session ? session.user : null;
+  sb.auth.onAuthStateChange((_event, s) => {
+    const wasOut = !syncUser;
+    syncUser = s ? s.user : null;
+    renderSyncBar();
+    if (syncUser && wasOut) pullMergePush();
+  });
+  renderSyncBar();
+  if (syncUser) await pullMergePush();
+}
+function renderSyncBar() {
+  const bar = document.getElementById('sync-bar');
+  if (!syncConfigured()) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  if (!syncUser) {
+    bar.innerHTML = `<span>Sync across your devices:</span>
+      <input type="email" id="sync-email" placeholder="your email" onkeydown="if(event.key==='Enter')sendLoginLink()">
+      <button onclick="sendLoginLink()">Send login link</button>`;
+  } else {
+    const dot = `<span class="sync-dot ${syncState === 'error' ? 'error' : syncState === 'syncing' ? 'syncing' : 'ok'}"></span>`;
+    const label = syncState === 'error' ? 'sync problem — saved on this device'
+      : syncState === 'syncing' ? 'syncing…' : 'synced';
+    bar.innerHTML = `<span>${dot}${label} · ${esc(syncUser.email)}</span><button onclick="signOutSync()">sign out</button>`;
+  }
+}
+function setSyncState(s) { syncState = s; if (syncUser) renderSyncBar(); }
+async function sendLoginLink() {
+  const email = document.getElementById('sync-email').value.trim();
+  if (!email) { toast('Type your email first 🙂'); return; }
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  toast(error ? 'Problem: ' + error.message : 'Check your email and tap the login link 📧');
+}
+async function signOutSync() { await sb.auth.signOut(); toast('Signed out — your data stays on this device'); }
+function mergeRemote(remote) {
+  const byId = new Map(items.map(i => [i.id, i]));
+  (remote.items || []).forEach(r => {
+    const local = byId.get(r.id);
+    if (!local || (r.updated || 0) > (local.updated || 0)) byId.set(r.id, r);
+  });
+  items = [...byId.values()];
+  const seen = new Set(log.map(c => c.id + '|' + c.ts));
+  (remote.log || []).forEach(c => { if (c.id && c.ts && !seen.has(c.id + '|' + c.ts)) log.push(c); });
+}
+async function pullMergePush() {
+  if (!sb || !syncUser) return;
+  setSyncState('syncing');
+  try {
+    const { data, error } = await sb.from(SYNC_TABLE).select('data').eq('user_id', syncUser.id).maybeSingle();
+    if (error) throw error;
+    if (data && data.data) mergeRemote(data.data);
+    localStorage.setItem(STORE_KEY, JSON.stringify(items));
+    localStorage.setItem(LOG_KEY, JSON.stringify(log));
+    refreshPlatformFilter(); renderList();
+    await pushRemote();
+  } catch (e) { setSyncState('error'); }
+}
+async function pushRemote() {
+  if (!sb || !syncUser) return;
+  setSyncState('syncing');
+  const { error } = await sb.from(SYNC_TABLE).upsert({ user_id: syncUser.id, data: { items, log }, updated_at: new Date().toISOString() });
+  setSyncState(error ? 'error' : 'ok');
+}
+function schedulePush() { if (!sb || !syncUser) return; clearTimeout(pushTimer); pushTimer = setTimeout(pushRemote, 1500); }
+
+/* ================= theme ================= */
+const THEME_KEY = 'workhelp-theme';
+const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+function currentTheme() { return localStorage.getItem(THEME_KEY) || (themeMedia.matches ? 'dark' : 'light'); }
+function applyTheme() {
+  const t = currentTheme();
+  document.documentElement.dataset.theme = t;
+  document.getElementById('theme-toggle').textContent = t === 'dark' ? '☀️' : '🌙';
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#221d38' : '#ffffff');
+}
+function toggleTheme() { localStorage.setItem(THEME_KEY, currentTheme() === 'dark' ? 'light' : 'dark'); applyTheme(); }
+themeMedia.addEventListener('change', () => { if (!localStorage.getItem(THEME_KEY)) applyTheme(); });
+
+/* ================= misc ================= */
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+load();
+setChoice('stats-range', '30');
+refreshPlatformFilter();
+showScreen(activeItems().filter(i => i.status !== 'done').length ? 'rank' : 'add');
+if (activeItems().filter(i => i.status !== 'done').length) runRank();
+renderList();
+renderFormSuggestions();
+applyTheme();
+initSync();
+</script>
+</body>
+</html>
