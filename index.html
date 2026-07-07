@@ -188,6 +188,11 @@
   .item-actions button:hover { border-color: var(--teal); color: var(--teal); }
   .item-actions .btn-log { background: var(--teal-soft); border-color: var(--teal-soft); color: var(--teal); font-weight: 700; }
   .item-actions .btn-done { background: var(--green-soft); border-color: var(--green-soft); color: var(--green); font-weight: 700; }
+  .item-actions .btn-focus { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+  .item-actions .btn-focus:hover { color: var(--on-accent); filter: brightness(1.1); }
+  .item-actions .btn-aside { background: var(--amber-soft); border-color: var(--amber-soft); color: var(--amber); font-weight: 600; }
+  .b-focus { background: var(--orange-soft); color: var(--orange); font-weight: 600; }
+  .focus-current { border: 2px solid var(--teal); box-shadow: 0 4px 22px rgba(32,195,203,.18); }
   .count-line { color: var(--ink-soft); font-size: .88rem; margin: 4px 2px 10px; }
 
   /* ---- rank screen ---- */
@@ -283,6 +288,7 @@
 
 <nav>
   <button id="nav-rank" onclick="showScreen('rank')">⚡ What now?</button>
+  <button id="nav-focus" onclick="showScreen('focus')">🎯 Focus</button>
   <button id="nav-list" onclick="showScreen('list')">📋 My to-dos</button>
   <button id="nav-add" onclick="showScreen('add')">➕ Add</button>
   <button id="nav-stats" onclick="showScreen('stats')">📊 Stats</button>
@@ -304,6 +310,11 @@
       <div class="mood-chips" id="rank-chips"></div>
     </div>
     <div id="rank-results"></div>
+  </section>
+
+  <!-- ============ SCREEN: FOCUS (current work item + related) ============ -->
+  <section id="screen-focus" class="screen">
+    <div id="focus-content"></div>
   </section>
 
   <!-- ============ SCREEN: MY TO-DOS ============ -->
@@ -461,17 +472,22 @@
 /* ================= data ================= */
 const STORE_KEY = 'workhelp-items-v1';
 const LOG_KEY = 'workhelp-log-v1';   // work sessions + completions, for stats
+const CURRENT_KEY = 'workhelp-current-v1';   // the Focus spotlight (id + when it was set)
 let items = [];
 let log = [];
+let currentId = null;   // the one item in the Focus spotlight (persists until changed)
+let currentTs = 0;      // when it was set, so devices agree on the newest choice when syncing
 let editingId = null;
 
 function load() {
   try { items = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch(e) { items = []; }
   try { log = JSON.parse(localStorage.getItem(LOG_KEY)) || []; } catch(e) { log = []; }
+  try { const c = JSON.parse(localStorage.getItem(CURRENT_KEY)) || {}; currentId = c.id || null; currentTs = c.ts || 0; } catch(e) { currentId = null; currentTs = 0; }
 }
 function persist() {
   localStorage.setItem(STORE_KEY, JSON.stringify(items));
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
+  localStorage.setItem(CURRENT_KEY, JSON.stringify({ id: currentId, ts: currentTs }));
   schedulePush();
 }
 // items with deleted:true are tombstones — kept so a deletion on one device
@@ -501,6 +517,7 @@ function showScreen(name) {
   if (navBtn) navBtn.classList.add('active');
   if (name === 'list') { refreshPlatformFilter(); renderList(); }
   if (name === 'rank') { renderRankChips(); }
+  if (name === 'focus') renderFocus();
   if (name === 'stats') renderStats();
   if (name === 'add' && !editingId) resetForm();
   window.scrollTo({top:0});
@@ -632,13 +649,63 @@ function deleteItem(id) {
   const it = items.find(i => i.id === id);
   if (!it || !confirm(`Delete "${it.title}"?`)) return;
   it.deleted = true; it.updated = Date.now();
-  persist(); renderList(); toast('Deleted');
+  if (id === currentId) { currentId = null; currentTs = Date.now(); }   // don't spotlight a deleted item
+  persist(); renderList(); renderFocus(); toast('Deleted');
 }
 function reopenItem(id) {
   const it = items.find(i => i.id === id);
   if (!it) return;
   it.status = 'notstarted'; it.updated = Date.now();
   persist(); renderList(); toast('Reopened');
+}
+
+/* ================= Focus (the spotlight) ================= */
+function workOnThis(id) {
+  const it = items.find(i => i.id === id);
+  if (!it || it.status === 'done') return;
+  currentId = id; currentTs = Date.now();
+  if (it.status === 'notstarted' || it.status === 'waiting') it.status = 'working';   // you're on it now
+  it.updated = Date.now();
+  persist();
+  showScreen('focus');
+  toast(`On it: "${it.title}" 🎯`);
+}
+function setAside() {
+  currentId = null; currentTs = Date.now();   // clears the spotlight; the task stays "Working on it"
+  persist(); renderFocus(); toast('Set aside — still on your Working list');
+}
+function currentItem() {
+  const it = currentId ? items.find(i => i.id === currentId && !i.deleted) : null;
+  return (it && it.status !== 'done') ? it : null;
+}
+// related suggestions sort: soonest real deadline first, undated last
+function byDeadline(a, b) {
+  const ad = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+  const bd = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+  return ad - bd || b.updated - a.updated;
+}
+function renderFocus() {
+  const el = document.getElementById('focus-content');
+  if (!el) return;
+  const it = currentItem();
+  if (!it) {
+    if (currentId) { currentId = null; currentTs = Date.now(); persist(); }   // spotlight item was finished/removed
+    el.innerHTML = `<div class="mood-box-wrap"><h2>Nothing in focus 🎯</h2>
+      <p>Pick something and tap <b>▶ Work on this</b> — I’ll pin it here and line up related jobs underneath.</p></div>
+      <div class="empty"><button class="btn-quiet" onclick="showScreen('rank')">Go to What now?</button></div>`;
+    return;
+  }
+  let html = `<div class="section-label">You’re on it 🎯</div>` + itemCard(it, '', false, true);
+  // roll into related, actionable work (not done, not blocked/waiting, not this one)
+  const pool = activeItems().filter(i => i.status !== 'done' && i.status !== 'waiting' && i.id !== it.id);
+  const samePlatform = pool.filter(i => i.platform === it.platform &&
+    (i.platform !== 'other' || (i.platformOther||'') === (it.platformOther||''))).sort(byDeadline).slice(0, 4);
+  const shown = new Set(samePlatform.map(i => i.id));
+  const samePerson = it.who ? pool.filter(i => i.who && i.who.toLowerCase() === it.who.toLowerCase() && !shown.has(i.id)).sort(byDeadline).slice(0, 4) : [];
+  if (samePlatform.length) html += `<div class="section-label">Also in ${esc(platformLabel(it))}</div>` + samePlatform.map(i => itemCard(i)).join('');
+  if (samePerson.length) html += `<div class="section-label">Also for ${esc(it.who)}</div>` + samePerson.map(i => itemCard(i)).join('');
+  if (!samePlatform.length && !samePerson.length) html += `<div class="empty"><p>No related jobs to line up — a clear run on this one. 🎉</p></div>`;
+  el.innerHTML = html;
 }
 
 /* ================= log work ================= */
@@ -663,9 +730,10 @@ function saveLog() {
   if (note) it.notes = note;   // keep the latest progress note visible on the card
   it.updated = Date.now();
   appendLog(it, mins, false);
+  const wasCurrent = it.id === currentId;
   loggingId = null;
   persist();
-  showScreen('list');
+  showScreen(wasCurrent ? 'focus' : 'list');   // if it's your spotlight, drop back to Focus
   toast(`Logged ${mins} min on "${it.title}" 💪`);
 }
 function cancelLog() { loggingId = null; showScreen('list'); }
@@ -702,11 +770,13 @@ function completeItem(id) {
       status: 'notstarted', tags: [...(it.tags || [])], notes: it.notes || '',
     });
     it.status = 'done'; it.updated = Date.now();
-    persist(); renderList();
+    if (id === currentId) { currentId = null; currentTs = Date.now(); }
+    persist(); renderList(); renderFocus();
     toast(`Done ✓ — next one due ${fmtDate(nd)}`);
   } else {
     it.status = 'done'; it.updated = Date.now();
-    persist(); renderList();
+    if (id === currentId) { currentId = null; currentTs = Date.now(); }
+    persist(); renderList(); renderFocus();
     toast(`Done ✓ 🎉`);
   }
 }
@@ -747,9 +817,28 @@ function deadlineBadge(it) {
 /* ================= list ================= */
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-function itemCard(it, extraHtml='', urgent=false) {
+// focus=true renders the spotlight card (log / done / done-for-now / edit).
+// Otherwise it's a normal card, which offers "▶ Work on this" unless it IS the
+// current spotlight item (then it shows a 🎯 In focus badge instead).
+function itemCard(it, extraHtml='', urgent=false, focus=false) {
   const done = it.status === 'done';
-  return `<div class="card item-card ${extraHtml?'suggestion':''} ${urgent?'urgent':''}">
+  const isCurrent = it.id === currentId;
+  let actions;
+  if (focus) {
+    actions = `
+      <button class="btn-log" onclick="logWork('${it.id}')">＋ log work</button>
+      <button class="btn-done" onclick="completeItem('${it.id}')">✓ done</button>
+      <button class="btn-aside" onclick="setAside()">⏸ done for now</button>
+      <button onclick="editItem('${it.id}')">✏️ edit</button>`;
+  } else {
+    actions = `
+      ${!done && !isCurrent ? `<button class="btn-focus" onclick="workOnThis('${it.id}')">▶ work on this</button>` : ''}
+      ${!done ? `<button class="btn-log" onclick="logWork('${it.id}')">＋ log work</button>` : ''}
+      ${!done ? `<button class="btn-done" onclick="completeItem('${it.id}')">✓ done</button>` : `<button onclick="reopenItem('${it.id}')">↩ reopen</button>`}
+      <button onclick="editItem('${it.id}')">✏️ edit</button>
+      <button class="btn-danger" onclick="deleteItem('${it.id}')">🗑</button>`;
+  }
+  return `<div class="card item-card ${extraHtml?'suggestion':''} ${urgent?'urgent':''} ${focus?'focus-current':''}">
     <div class="item-emoji">${platformEmoji(it)}</div>
     <div class="item-body">
       <p class="item-title ${done?'done':''}">${esc(it.title)}</p>
@@ -758,16 +847,13 @@ function itemCard(it, extraHtml='', urgent=false) {
       ${it.notes ? `<div class="item-meta">📝 ${esc(it.notes)}</div>` : ''}
       <div class="badges">
         <span class="badge ${STATUS_CLASS[it.status]}">${STATUS_LABEL[it.status]}</span>
+        ${!focus && isCurrent ? `<span class="badge b-focus">🎯 In focus</span>` : ''}
         ${deadlineBadge(it)}
         ${(it.tags||[]).map(t => `<span class="badge b-tag">${esc(t)}</span>`).join('')}
       </div>
       ${extraHtml}
     </div>
-    <div class="item-actions">
-      ${!done ? `<button class="btn-log" onclick="logWork('${it.id}')">＋ log work</button>` : ''}
-      ${!done ? `<button class="btn-done" onclick="completeItem('${it.id}')">✓ done</button>` : `<button onclick="reopenItem('${it.id}')">↩ reopen</button>`}
-      <button onclick="editItem('${it.id}')">✏️ edit</button>
-      <button class="btn-danger" onclick="deleteItem('${it.id}')">🗑</button>
+    <div class="item-actions">${actions}
     </div>
   </div>`;
 }
@@ -1163,6 +1249,8 @@ function mergeRemote(remote) {
   items = [...byId.values()];
   const seen = new Set(log.map(c => c.id + '|' + c.ts));
   (remote.log || []).forEach(c => { if (c.id && c.ts && !seen.has(c.id + '|' + c.ts)) log.push(c); });
+  // the Focus spotlight: whichever device set it most recently wins
+  if (remote.current && (remote.current.ts || 0) > currentTs) { currentId = remote.current.id || null; currentTs = remote.current.ts; }
 }
 async function pullMergePush() {
   if (!sb || !syncUser) return;
@@ -1173,14 +1261,15 @@ async function pullMergePush() {
     if (data && data.data) mergeRemote(data.data);
     localStorage.setItem(STORE_KEY, JSON.stringify(items));
     localStorage.setItem(LOG_KEY, JSON.stringify(log));
-    refreshPlatformFilter(); renderList();
+    localStorage.setItem(CURRENT_KEY, JSON.stringify({ id: currentId, ts: currentTs }));
+    refreshPlatformFilter(); renderList(); renderFocus();
     await pushRemote();
   } catch (e) { setSyncState('error'); }
 }
 async function pushRemote() {
   if (!sb || !syncUser) return;
   setSyncState('syncing');
-  const { error } = await sb.from(SYNC_TABLE).upsert({ user_id: syncUser.id, data: { items, log }, updated_at: new Date().toISOString() });
+  const { error } = await sb.from(SYNC_TABLE).upsert({ user_id: syncUser.id, data: { items, log, current: { id: currentId, ts: currentTs } }, updated_at: new Date().toISOString() });
   setSyncState(error ? 'error' : 'ok');
 }
 function schedulePush() { if (!sb || !syncUser) return; clearTimeout(pushTimer); pushTimer = setTimeout(pushRemote, 1500); }
@@ -1210,8 +1299,10 @@ function toast(msg) {
 load();
 setChoice('stats-range', '30');
 refreshPlatformFilter();
-showScreen(activeItems().filter(i => i.status !== 'done').length ? 'rank' : 'add');
-if (activeItems().filter(i => i.status !== 'done').length) runRank();
+const hasActive = activeItems().filter(i => i.status !== 'done').length;
+// open on Focus if something's spotlighted (a persistent reminder of what you're on), else What now? / Add
+showScreen(currentItem() ? 'focus' : (hasActive ? 'rank' : 'add'));
+if (hasActive) runRank();
 renderList();
 renderFormSuggestions();
 applyTheme();
